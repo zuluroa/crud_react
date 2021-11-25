@@ -3,7 +3,8 @@ import React, { createContext, useReducer, useContext, useEffect, useRef, useSta
 
 const HOST_API = "http://localhost:8080/api"
 const initialState = {
-  list: []
+  list: [],
+  item: {}
 };
 const Store = createContext(initialState);
 
@@ -38,12 +39,37 @@ const Form = () => {
       });
   }
 
+  const onEdit = (event) => {
+    event.preventDefault();
+
+    //Aca le mandamos los valores que guardaremos en la base de datos
+    const request = {
+      name: state.name,
+      id: item.id,
+      isCompleted: item.isCompleted
+    };
+    //Este traera toda la informacion (Por medio de fectch a diferencia del listar le mandamos un body)
+    fetch(HOST_API + "/save", {
+      method: "PUT",
+      body: JSON.stringify(request),
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(response => response.json())
+      .then((todo) => {
+        dispatch({ type: "update-item", item: todo });
+        setState({ name: "" });
+        formRef.current.reset();
+      });
+  }
 
   return <form ref={formRef}>
-    <input type="text" name="name" onChange={(event) => {
+    <input type="text" name="name" defaultValue={item.name} onChange={(event) => {
       setState({ ...state, name: event.target.value })
     }}></input>
-    <button onClick={onAdd}>Agregar</button>
+    {item.id && <button onClick={onEdit}>Actualizar</button>}
+    {!item.id && <button onClick={onAdd}>Agregar</button>}
   </form>
 
 }
@@ -61,6 +87,10 @@ const List = () => {
       })
   }, [state.list.length, dispatch]);
 
+  const onEdit = (todo) => {
+    dispatch({ type: "edit-item", item: todo })
+  }
+
 
   return <div>
     <table>
@@ -77,6 +107,7 @@ const List = () => {
             <td>{todo.id}</td>
             <td>{todo.name}</td>
             <td>{todo.isCompleted === true ? "SI" : "NO"}</td>
+            <button onClick={() => onEdit(todo)}>EDITAR</button>
           </tr>
         })}
       </tbody>
@@ -87,6 +118,16 @@ const List = () => {
 
 function reducer(state, action) {
   switch (action.type) {
+    case 'update-item':
+      const listUpdateEdit = state.list.map((item) => {
+        if (item.id === action.item.id) {
+          return action.item;
+        }
+        return item;
+      });
+      return { ...state, list: listUpdateEdit, item: {} }
+    case 'edit-item':
+      return { ...state, item: action.item }
     case 'update-list':
       return { ...state, list: action.list }
     case 'add-item':
